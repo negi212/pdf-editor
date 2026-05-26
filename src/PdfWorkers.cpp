@@ -6,6 +6,8 @@
 
 // podofo headers
 #include <podofo/podofo.h>
+#include <podofo/base/podofo_config.h>
+
 // qpdf headers
 #include <qpdf/QPDF.hh>
 #include <qpdf/QPDFPageDocumentHelper.hh>
@@ -18,7 +20,20 @@ namespace PdfWorkers {
 bool convertImagesToPdf(const std::vector<std::string>& imagePaths, const std::string& outputPath, std::string& errorMsg) {
     try {
         PoDoFo::PdfMemDocument document;
+#if PODOFO_VERSION_MINOR >= 10
+        PoDoFo::PdfPainter painter;
+#endif
         for (const auto& img_path : imagePaths) {
+#if PODOFO_VERSION_MINOR >= 10
+            auto image = document.CreateImage();
+            image->Load(img_path);
+            double img_w = image->GetWidth();
+            double img_h = image->GetHeight();
+            auto& page = document.GetPages().CreatePage(PoDoFo::Rect(0, 0, img_w, img_h));
+            painter.SetCanvas(page);
+            painter.DrawImage(*image, 0, 0, 1.0, 1.0);
+            painter.FinishDrawing();
+#else
             PoDoFo::PdfImage image(&document);
             image.LoadFromFile(img_path.c_str());
 
@@ -32,27 +47,59 @@ bool convertImagesToPdf(const std::vector<std::string>& imagePaths, const std::s
             painter.SetPage(page);
             painter.DrawImage(0, 0, &image, 1.0, 1.0);
             painter.FinishPage();
+#endif
         }
+#if PODOFO_VERSION_MINOR >= 10
+        document.Save(outputPath);
+#else
         document.Write(outputPath.c_str());
+#endif
         return true;
+#if PODOFO_VERSION_MINOR >= 10
     } catch (PoDoFo::PdfError& e) {
-        errorMsg = "PoDoFo error occurred."; // could fetch more detail if PoDoFo < 0.10
+        errorMsg = "PoDoFo error occurred.";
         return false;
     } catch (const std::exception& e) {
         errorMsg = e.what();
         return false;
     }
+#else
+    } catch (PoDoFo::PdfError& e) {
+        errorMsg = "PoDoFo error occurred.";
+        return false;
+    } catch (const std::exception& e) {
+        errorMsg = e.what();
+        return false;
+    }
+#endif
 }
 
 bool mergePdfs(const std::vector<std::string>& inputPaths, const std::string& outputPath, std::string& errorMsg) {
     try {
         PoDoFo::PdfMemDocument output_document;
+#if PODOFO_VERSION_MINOR >= 10
+        bool first = true;
+#endif
         for (const auto& pdf_path : inputPaths) {
             PoDoFo::PdfMemDocument input_document;
+#if PODOFO_VERSION_MINOR >= 10
+            input_document.Load(pdf_path);
+            if (first) {
+                output_document.GetPages().AppendDocumentPages(input_document);
+                first = false;
+            } else {
+                output_document.GetPages().AppendDocumentPages(input_document);
+            }
+#else
             input_document.Load(pdf_path.c_str());
             output_document.Append(input_document);
+#endif
         }
+#if PODOFO_VERSION_MINOR >= 10
+        output_document.Save(outputPath);
+#else
         output_document.Write(outputPath.c_str());
+#endif
         return true;
     } catch (PoDoFo::PdfError& e) {
         errorMsg = "PoDoFo error occurred in merge.";
@@ -103,19 +150,34 @@ bool rotatePdfPages(const std::string& inputPath, const std::string& outputPath,
         int input_angle = std::stoi(command.substr(colon_pos + 1));
 
         PoDoFo::PdfMemDocument document;
+#if PODOFO_VERSION_MINOR >= 10
+        document.Load(inputPath);
+        int total_pages = document.GetPages().GetCount();
+#else
         document.Load(inputPath.c_str());
         int total_pages = document.GetPageCount();
+#endif
 
         std::set<int> target_pages = parse_pages(page_spec, total_pages);
         int pdf_rotation = normalize_rotation(input_angle);
 
         for (int page_num : target_pages) {
+#if PODOFO_VERSION_MINOR >= 10
+            PoDoFo::PdfPage& page = document.GetPages().GetPageAt(page_num - 1);
+            int current_rot = page.GetRotationRaw();
+            page.SetRotationRaw((current_rot + pdf_rotation) % 360);
+#else
             PoDoFo::PdfPage* page = document.GetPage(page_num - 1);
             int current_rot = page->GetRotation();
             page->SetRotation((current_rot + pdf_rotation) % 360);
+#endif
         }
 
+#if PODOFO_VERSION_MINOR >= 10
+        document.Save(outputPath);
+#else
         document.Write(outputPath.c_str());
+#endif
         return true;
     } catch (PoDoFo::PdfError& e) {
         errorMsg = "PoDoFo error in rotate.";
