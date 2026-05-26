@@ -54,6 +54,7 @@ jobs:
           mingw-w64-ucrt-x86_64-cmake
           mingw-w64-ucrt-x86_64-make
           mingw-w64-ucrt-x86_64-qt6-base
+          mingw-w64-ucrt-x86_64-qt6-tools
           mingw-w64-ucrt-x86_64-podofo
           mingw-w64-ucrt-x86_64-qpdf
           mingw-w64-ucrt-x86_64-pkgconf
@@ -67,8 +68,12 @@ jobs:
 
     - name: Archive Application
       run: |
-        cd build
-        zip -r ../PDFEditor-windows-x86_64.zip PDFEditor.exe
+        mkdir release_dir
+        cp build/PDFEditor.exe release_dir/
+        cd release_dir
+        windeployqt --release --compiler-runtime PDFEditor.exe
+        ldd PDFEditor.exe | awk '{print $3}' | grep -i "ucrt64" | xargs -I{} cp "{}" .
+        zip -r ../PDFEditor-windows-x86_64.zip *
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
