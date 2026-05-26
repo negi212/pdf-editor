@@ -1,0 +1,45 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y qt6-base-dev libpodofo-dev libqpdf-dev cmake build-essential tar
+
+    - name: Configure CMake
+      run: |
+        mkdir build
+        cd build
+        cmake ..
+
+    - name: Build
+      run: |
+        cd build
+        make
+
+    - name: Archive Application
+      run: |
+        tar -czf PDFEditor-linux-x86_64.tar.gz -C build PDFEditor
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: PDFEditor-linux-x86_64.tar.gz
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
