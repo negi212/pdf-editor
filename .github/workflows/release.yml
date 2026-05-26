@@ -72,7 +72,7 @@ jobs:
         cp build/PDFEditor.exe release_dir/
         cd release_dir
         windeployqt --release --compiler-runtime PDFEditor.exe
-        ldd PDFEditor.exe | awk '{print $3}' | grep -i "ucrt64" | xargs -I{} cp "{}" .
+        find . -type f \( -name "*.exe" -o -name "*.dll" \) -exec ldd {} \; | awk '/=>/ {print $3}' | grep -i "ucrt64" | sort -u | xargs -I{} cp "{}" .
         zip -r ../PDFEditor-windows-x86_64.zip *
 
     - name: Upload Artifact
