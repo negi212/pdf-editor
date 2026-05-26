@@ -71,8 +71,8 @@ jobs:
         mkdir release_dir
         cp build/PDFEditor.exe release_dir/
         cd release_dir
-        windeployqt --release --compiler-runtime PDFEditor.exe
-        find . -type f \( -name "*.exe" -o -name "*.dll" \) -exec ldd {} \; | awk '/=>/ {print $3}' | grep -i "ucrt64" | sort -u | xargs -I{} cp "{}" .
+        windeployqt --release --no-compiler-runtime --no-translations PDFEditor.exe
+        for dll in $(find . -type f \( -name "*.exe" -o -name "*.dll" \) -exec ldd {} + | awk '/=>/ {print $3} !/=>/ {print $1}' | grep -iE 'ucrt64.*\.dll' | tr -d '\r' | sort -u); do cp -f "$dll" . ; done
         zip -r ../PDFEditor-windows-x86_64.zip *
 
     - name: Upload Artifact
