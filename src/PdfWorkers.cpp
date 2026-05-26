@@ -6,7 +6,6 @@
 
 // podofo headers
 #include <podofo/podofo.h>
-#include <podofo/base/podofo_config.h>
 
 // qpdf headers
 #include <qpdf/QPDF.hh>
