@@ -7,6 +7,7 @@
 #include <QPushButton>
 #include <QLabel>
 #include <QStatusBar>
+#include <QEvent>
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -14,14 +15,18 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+protected:
+    bool eventFilter(QObject *obj, QEvent *event) override;
+
 public slots:
     void showMessage(const QString& msg, bool isError = false);
 
 private slots:
-    void onImgAddBtnClicked();
+    void onImgBrowseBtnClicked();
+    void onImgClearBtnClicked();
     void onImgRunBtnClicked();
 
-    void onMergeAddBtnClicked();
+    void onMergeBrowseBtnClicked();
     void onMergeRunBtnClicked();
 
     void onRotateBrowseBtnClicked();
@@ -36,14 +41,15 @@ private:
     
     // Tab 1: Image to PDF
     QWidget* createImageToPdfTab();
-    QListWidget* imgListWidget;
-    QPushButton* imgAddBtn;
+    QLineEdit* imgInputFileEdit;
+    QPushButton* imgBrowseBtn;
+    QPushButton* imgClearBtn;
     QPushButton* imgRunBtn;
 
     // Tab 2: Merge PDF
     QWidget* createMergePdfTab();
-    QListWidget* mergeListWidget;
-    QPushButton* mergeAddBtn;
+    QLineEdit* mergeInputFileEdit;
+    QPushButton* mergeBrowseBtn;
     QPushButton* mergeRunBtn;
 
     // Tab 3: Rotate PDF

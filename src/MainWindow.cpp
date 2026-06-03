@@ -99,42 +99,61 @@ QWidget* MainWindow::createImageToPdfTab() {
     QWidget* w = new QWidget();
     QVBoxLayout* layout = new QVBoxLayout(w);
 
-    imgListWidget = new QListWidget();
-    layout->addWidget(imgListWidget);
+    QHBoxLayout* fileLayout = new QHBoxLayout();
+    imgInputFileEdit = new QLineEdit();
+    imgInputFileEdit->setReadOnly(true);
+    imgInputFileEdit->installEventFilter(this);
+    imgBrowseBtn = new QPushButton("参照...");
+    imgClearBtn = new QPushButton("クリア");
+    fileLayout->addWidget(new QLabel("入力画像:"));
+    fileLayout->addWidget(imgInputFileEdit);
+    fileLayout->addWidget(imgBrowseBtn);
+    fileLayout->addWidget(imgClearBtn);
+    
+    layout->addLayout(fileLayout);
+    layout->addStretch();
 
-    QHBoxLayout* btnLayout = new QHBoxLayout();
-    btnLayout->setSpacing(24);
-    imgAddBtn = new QPushButton("画像を選択");
     imgRunBtn = new QPushButton("PDF生成 (実行)");
-    
-    btnLayout->addWidget(imgAddBtn);
-    btnLayout->addWidget(imgRunBtn);
-    
-    layout->addLayout(btnLayout);
+    layout->addWidget(imgRunBtn);
 
-    connect(imgAddBtn, &QPushButton::clicked, this, &MainWindow::onImgAddBtnClicked);
+    connect(imgBrowseBtn, &QPushButton::clicked, this, &MainWindow::onImgBrowseBtnClicked);
+    connect(imgClearBtn, &QPushButton::clicked, this, &MainWindow::onImgClearBtnClicked);
     connect(imgRunBtn, &QPushButton::clicked, this, &MainWindow::onImgRunBtnClicked);
 
     return w;
 }
 
-void MainWindow::onImgAddBtnClicked() {
+void MainWindow::onImgBrowseBtnClicked() {
     QStringList files = QFileDialog::getOpenFileNames(this, "画像を選択", "", "Images (*.png *.jpg *.jpeg *.bmp)");
-    imgListWidget->addItems(files);
+    if (!files.isEmpty()) {
+        QString current = imgInputFileEdit->text();
+        QString added = files.join(" | ");
+        if (current.isEmpty()) {
+            imgInputFileEdit->setText(added);
+        } else {
+            imgInputFileEdit->setText(current + " | " + added);
+        }
+    }
+}
+
+void MainWindow::onImgClearBtnClicked() {
+    imgInputFileEdit->clear();
 }
 
 void MainWindow::onImgRunBtnClicked() {
-    if (imgListWidget->count() == 0) {
+    if (imgInputFileEdit->text().isEmpty()) {
         showMessage("画像が選択されていません。", true);
         return;
     }
 
     QString outFile = QFileDialog::getSaveFileName(this, "保存先ファイル名", "", "PDF (*.pdf)");
     if (outFile.isEmpty()) return;
+    if (!outFile.endsWith(".pdf", Qt::CaseInsensitive)) outFile += ".pdf";
 
+    QStringList fileList = imgInputFileEdit->text().split(" | ", Qt::SkipEmptyParts);
     std::vector<std::string> paths;
-    for (int i = 0; i < imgListWidget->count(); ++i) {
-        paths.push_back(imgListWidget->item(i)->text().toStdString());
+    for (const QString& f : fileList) {
+        paths.push_back(f.toStdString());
     }
 
     std::string err;
@@ -151,42 +170,54 @@ QWidget* MainWindow::createMergePdfTab() {
     QWidget* w = new QWidget();
     QVBoxLayout* layout = new QVBoxLayout(w);
 
-    mergeListWidget = new QListWidget();
-    layout->addWidget(mergeListWidget);
+    QHBoxLayout* fileLayout = new QHBoxLayout();
+    mergeInputFileEdit = new QLineEdit();
+    mergeInputFileEdit->setReadOnly(true);
+    mergeInputFileEdit->installEventFilter(this);
+    mergeBrowseBtn = new QPushButton("参照...");
+    fileLayout->addWidget(new QLabel("入力PDF:"));
+    fileLayout->addWidget(mergeInputFileEdit);
+    fileLayout->addWidget(mergeBrowseBtn);
+    
+    layout->addLayout(fileLayout);
+    layout->addStretch();
 
-    QHBoxLayout* btnLayout = new QHBoxLayout();
-    btnLayout->setSpacing(24);
-    mergeAddBtn = new QPushButton("PDFを選択");
     mergeRunBtn = new QPushButton("結合 (実行)");
-    
-    btnLayout->addWidget(mergeAddBtn);
-    btnLayout->addWidget(mergeRunBtn);
-    
-    layout->addLayout(btnLayout);
+    layout->addWidget(mergeRunBtn);
 
-    connect(mergeAddBtn, &QPushButton::clicked, this, &MainWindow::onMergeAddBtnClicked);
+    connect(mergeBrowseBtn, &QPushButton::clicked, this, &MainWindow::onMergeBrowseBtnClicked);
     connect(mergeRunBtn, &QPushButton::clicked, this, &MainWindow::onMergeRunBtnClicked);
 
     return w;
 }
 
-void MainWindow::onMergeAddBtnClicked() {
+void MainWindow::onMergeBrowseBtnClicked() {
     QStringList files = QFileDialog::getOpenFileNames(this, "PDFを選択", "", "PDF (*.pdf)");
-    mergeListWidget->addItems(files);
+    if (!files.isEmpty()) {
+        QString current = mergeInputFileEdit->text();
+        QString added = files.join(" | ");
+        if (current.isEmpty()) {
+            mergeInputFileEdit->setText(added);
+        } else {
+            mergeInputFileEdit->setText(current + " | " + added);
+        }
+    }
 }
 
 void MainWindow::onMergeRunBtnClicked() {
-    if (mergeListWidget->count() < 1) {
+    if (mergeInputFileEdit->text().isEmpty()) {
         showMessage("結合するPDFが選択されていません。", true);
         return;
     }
 
     QString outFile = QFileDialog::getSaveFileName(this, "保存先ファイル名", "", "PDF (*.pdf)");
     if (outFile.isEmpty()) return;
+    if (!outFile.endsWith(".pdf", Qt::CaseInsensitive)) outFile += ".pdf";
 
+    QStringList fileList = mergeInputFileEdit->text().split(" | ", Qt::SkipEmptyParts);
     std::vector<std::string> paths;
-    for (int i = 0; i < mergeListWidget->count(); ++i) {
-        paths.push_back(mergeListWidget->item(i)->text().toStdString());
+    for (const QString& f : fileList) {
+        paths.push_back(f.toStdString());
     }
 
     std::string err;
@@ -206,6 +237,7 @@ QWidget* MainWindow::createRotatePdfTab() {
     QHBoxLayout* fileLayout = new QHBoxLayout();
     rotateInputFileEdit = new QLineEdit();
     rotateInputFileEdit->setReadOnly(true);
+    rotateInputFileEdit->installEventFilter(this);
     rotateBrowseBtn = new QPushButton("参照...");
     fileLayout->addWidget(new QLabel("入力PDF:"));
     fileLayout->addWidget(rotateInputFileEdit);
@@ -248,6 +280,7 @@ void MainWindow::onRotateRunBtnClicked() {
 
     QString outFile = QFileDialog::getSaveFileName(this, "保存先ファイル名", "", "PDF (*.pdf)");
     if (outFile.isEmpty()) return;
+    if (!outFile.endsWith(".pdf", Qt::CaseInsensitive)) outFile += ".pdf";
 
     std::string err;
     if (PdfWorkers::rotatePdfPages(inFile.toStdString(), outFile.toStdString(), cond.toStdString(), err)) {
@@ -266,6 +299,7 @@ QWidget* MainWindow::createSpreadPdfTab() {
     QHBoxLayout* fileLayout = new QHBoxLayout();
     spreadInputFileEdit = new QLineEdit();
     spreadInputFileEdit->setReadOnly(true);
+    spreadInputFileEdit->installEventFilter(this);
     spreadBrowseBtn = new QPushButton("参照...");
     fileLayout->addWidget(new QLabel("入力PDF:"));
     fileLayout->addWidget(spreadInputFileEdit);
@@ -300,6 +334,7 @@ void MainWindow::onSpreadRunBtnClicked() {
 
     QString outFile = QFileDialog::getSaveFileName(this, "保存先ファイル名", "", "PDF (*.pdf)");
     if (outFile.isEmpty()) return;
+    if (!outFile.endsWith(".pdf", Qt::CaseInsensitive)) outFile += ".pdf";
 
     std::string err;
     if (PdfWorkers::createSpreadPdf(inFile.toStdString(), outFile.toStdString(), err)) {
@@ -309,3 +344,23 @@ void MainWindow::onSpreadRunBtnClicked() {
         QMessageBox::critical(this, "Error", QString::fromStdString(err));
     }
 }
+
+bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
+    if (event->type() == QEvent::MouseButtonRelease) {
+        if (obj == imgInputFileEdit) {
+            onImgBrowseBtnClicked();
+            return true;
+        } else if (obj == mergeInputFileEdit) {
+            onMergeBrowseBtnClicked();
+            return true;
+        } else if (obj == rotateInputFileEdit) {
+            onRotateBrowseBtnClicked();
+            return true;
+        } else if (obj == spreadInputFileEdit) {
+            onSpreadBrowseBtnClicked();
+            return true;
+        }
+    }
+    return QMainWindow::eventFilter(obj, event);
+}
+
