@@ -4,6 +4,13 @@
 #include <set>
 #include <algorithm>
 
+#include <QImage>
+#include <QProcess>
+#include <QTemporaryDir>
+#include <QDir>
+#include <QStringList>
+#include <QRegularExpression>
+
 // podofo headers
 #include <podofo/podofo.h>
 
@@ -286,6 +293,75 @@ bool createSpreadPdf(const std::string& inputPath, const std::string& outputPath
         errorMsg = e.what();
         return false;
     }
+}
+
+bool makeWhiteBackground(const std::string& inputPath, const std::string& outputPath, std::string& errorMsg) {
+    QTemporaryDir tempDir;
+    if (!tempDir.isValid()) {
+        errorMsg = "Could not create temporary directory.";
+        return false;
+    }
+
+    // 1. Convert PDF to PNG images using pdftoppm
+    QProcess process;
+    QString prefix = tempDir.path() + "/page";
+    process.start("pdftoppm", QStringList() << "-png" << "-r" << "300" << QString::fromStdString(inputPath) << prefix);
+    process.waitForFinished(-1);
+
+    if (process.exitStatus() != QProcess::NormalExit || process.exitCode() != 0) {
+        errorMsg = "pdftoppm failed to convert PDF to images.";
+        return false;
+    }
+
+    // 2. Read and process generated PNG files
+    QDir dir(tempDir.path());
+    QStringList filters;
+    filters << "page-*.png";
+    dir.setNameFilters(filters);
+    QFileInfoList fileList = dir.entryInfoList();
+
+    if (fileList.isEmpty()) {
+        errorMsg = "No pages found or converted.";
+        return false;
+    }
+
+    std::sort(fileList.begin(), fileList.end(), [](const QFileInfo& a, const QFileInfo& b) {
+        QRegularExpression re("page-(\\d+)\\.png");
+        auto matchA = re.match(a.fileName());
+        auto matchB = re.match(b.fileName());
+        int numA = matchA.hasMatch() ? matchA.captured(1).toInt() : 0;
+        int numB = matchB.hasMatch() ? matchB.captured(1).toInt() : 0;
+        return numA < numB;
+    });
+
+    std::vector<std::string> processedImages;
+
+    for (const QFileInfo& fileInfo : fileList) {
+        QImage img(fileInfo.absoluteFilePath());
+        if (img.isNull()) continue;
+
+        img = img.convertToFormat(QImage::Format_RGB888);
+        for (int y = 0; y < img.height(); ++y) {
+            uchar* line = img.scanLine(y);
+            for (int x = 0; x < img.width(); ++x) {
+                int r = line[x * 3];
+                int g = line[x * 3 + 1];
+                int b = line[x * 3 + 2];
+                if (r > 150 && g > 150 && b > 180) {
+                    line[x * 3] = 255;
+                    line[x * 3 + 1] = 255;
+                    line[x * 3 + 2] = 255;
+                }
+            }
+        }
+        
+        QString outImgPath = fileInfo.absoluteFilePath() + "_proc.jpg"; // Use jpeg for smaller size like in python script
+        img.save(outImgPath, "JPEG", 100);
+        processedImages.push_back(outImgPath.toStdString());
+    }
+
+    // 3. Convert back to PDF
+    return convertImagesToPdf(processedImages, outputPath, errorMsg);
 }
 
 } // namespace PdfWorkers

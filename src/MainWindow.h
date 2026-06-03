@@ -35,6 +35,9 @@ private slots:
     void onSpreadBrowseBtnClicked();
     void onSpreadRunBtnClicked();
 
+    void onWhiteBgBrowseBtnClicked();
+    void onWhiteBgRunBtnClicked();
+
 private:
     QTabWidget *tabWidget;
     QStatusBar *statusBar;
@@ -64,4 +67,10 @@ private:
     QLineEdit* spreadInputFileEdit;
     QPushButton* spreadBrowseBtn;
     QPushButton* spreadRunBtn;
+
+    // Tab 5: White Background PDF
+    QWidget* createWhiteBgPdfTab();
+    QLineEdit* whiteBgInputFileEdit;
+    QPushButton* whiteBgBrowseBtn;
+    QPushButton* whiteBgRunBtn;
 };

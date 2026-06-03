@@ -77,6 +77,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     tabWidget->addTab(createMergePdfTab(), "PDF結合");
     tabWidget->addTab(createRotatePdfTab(), "ページ回転");
     tabWidget->addTab(createSpreadPdfTab(), "見開き化");
+    tabWidget->addTab(createWhiteBgPdfTab(), "背景白化");
 
     statusBar = new QStatusBar(this);
     setStatusBar(statusBar);
@@ -345,6 +346,60 @@ void MainWindow::onSpreadRunBtnClicked() {
     }
 }
 
+// ----- Tab 5: White Background PDF -----
+QWidget* MainWindow::createWhiteBgPdfTab() {
+    QWidget* w = new QWidget();
+    QVBoxLayout* layout = new QVBoxLayout(w);
+
+    QHBoxLayout* fileLayout = new QHBoxLayout();
+    whiteBgInputFileEdit = new QLineEdit();
+    whiteBgInputFileEdit->setReadOnly(true);
+    whiteBgInputFileEdit->installEventFilter(this);
+    whiteBgBrowseBtn = new QPushButton("参照...");
+    fileLayout->addWidget(new QLabel("入力PDF:"));
+    fileLayout->addWidget(whiteBgInputFileEdit);
+    fileLayout->addWidget(whiteBgBrowseBtn);
+
+    whiteBgRunBtn = new QPushButton("背景白化 (実行)");
+
+    layout->addLayout(fileLayout);
+    layout->addStretch();
+    layout->addWidget(whiteBgRunBtn);
+
+    connect(whiteBgBrowseBtn, &QPushButton::clicked, this, &MainWindow::onWhiteBgBrowseBtnClicked);
+    connect(whiteBgRunBtn, &QPushButton::clicked, this, &MainWindow::onWhiteBgRunBtnClicked);
+
+    return w;
+}
+
+void MainWindow::onWhiteBgBrowseBtnClicked() {
+    QString file = QFileDialog::getOpenFileName(this, "PDFを選択", "", "PDF (*.pdf)");
+    if (!file.isEmpty()) {
+        whiteBgInputFileEdit->setText(file);
+    }
+}
+
+void MainWindow::onWhiteBgRunBtnClicked() {
+    QString inFile = whiteBgInputFileEdit->text();
+    
+    if (inFile.isEmpty()) {
+        showMessage("ファイルが選択されていません。", true);
+        return;
+    }
+
+    QString outFile = QFileDialog::getSaveFileName(this, "保存先ファイル名", "", "PDF (*.pdf)");
+    if (outFile.isEmpty()) return;
+    if (!outFile.endsWith(".pdf", Qt::CaseInsensitive)) outFile += ".pdf";
+
+    std::string err;
+    if (PdfWorkers::makeWhiteBackground(inFile.toStdString(), outFile.toStdString(), err)) {
+        showMessage(QString("背景白化PDF作成完了: %1").arg(outFile));
+    } else {
+        showMessage(QString("エラー: %1").arg(QString::fromStdString(err)), true);
+        QMessageBox::critical(this, "Error", QString::fromStdString(err));
+    }
+}
+
 bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
     if (event->type() == QEvent::MouseButtonRelease) {
         if (obj == imgInputFileEdit) {
@@ -358,6 +413,9 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
             return true;
         } else if (obj == spreadInputFileEdit) {
             onSpreadBrowseBtnClicked();
+            return true;
+        } else if (obj == whiteBgInputFileEdit) {
+            onWhiteBgBrowseBtnClicked();
             return true;
         }
     }
